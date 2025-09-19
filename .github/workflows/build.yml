@@ -1,0 +1,35 @@
+name: Unzip and Build All APKs
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Unzip source
+        run: unzip -o phantom-final-definitive2.zip -d app
+
+      - name: Grant permissions
+        run: chmod +x ./gradlew
+
+      - name: Build APK
+        run: ./gradlew assembleDebug
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: PhantomAgent-APK
+          path: app/app/build/outputs/apk/debug/app-debug.apk
