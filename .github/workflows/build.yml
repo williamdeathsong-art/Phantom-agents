@@ -1,0 +1,63 @@
+name: Unzip and Build All APKs
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Unzip Android project
+      run: unzip phantom-final-definitive2.zip -d project
+
+    - name: Set up JDK
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x project/gradlew
+
+    - name: Build Debug APK
+      working-directory: project
+      run: ./gradlew assembleDebug
+
+    - name: Build Release APK (unsigned)
+      working-directory: project
+      run: ./gradlew assembleRelease
+
+    - name: Generate test keystore
+      run: |
+        keytool -genkeypair -v -keystore testkey.jks -storepass password \
+          -keypass password -alias testkey -keyalg RSA -keysize 2048 -validity 10000 \
+          -dname "CN=Test, OU=Test, O=Test, L=Test, S=Test, C=US"
+
+    - name: Sign Release APK
+      run: |
+        mkdir signed
+        RELEASE_APK=$(ls project/app/build/outputs/apk/release/*.apk | head -n 1)
+        jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
+          -keystore testkey.jks -storepass password -keypass password \
+          "$RELEASE_APK" testkey
+        cp "$RELEASE_APK" signed/app-release-signed.apk
+
+    - name: Collect APKs
+      run: |
+        mkdir output
+        cp project/app/build/outputs/apk/debug/*.apk output/app-debug.apk
+        cp signed/app-release-signed.apk output/
+        cd output
+        zip all-apks.zip *.apk
+
+    - name: Upload All APKs
+      uses: actions/upload-artifact@v3
+      with:
+        name: built-apks
+        path: output/all-apks.zip
