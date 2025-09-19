@@ -10,8 +10,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v3
+
+      - name: Unzip project
+        run: |
+          unzip -o "*.zip" -d appsrc
+          ls -R appsrc
 
       - name: Set up JDK 17
         uses: actions/setup-java@v3
@@ -19,17 +24,15 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Unzip source
-        run: unzip -o phantom-final-definitive2.zip -d app
-
-      - name: Grant permissions
-        run: chmod +x ./gradlew
+      - name: Grant Gradle permissions
+        run: chmod +x appsrc/gradlew || true
 
       - name: Build APK
+        working-directory: appsrc
         run: ./gradlew assembleDebug
 
-      - name: Upload APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v3
         with:
-          name: PhantomAgent-APK
-          path: app/app/build/outputs/apk/debug/app-debug.apk
+          name: Built-APK
+          path: appsrc/app/build/outputs/apk/debug/*.apk
